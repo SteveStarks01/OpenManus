@@ -5,18 +5,41 @@ base_url = "https://api.openai.com/v1"
 api_key = "sk-..."
 max_tokens = 4096
 temperature = 0.0
+api_type = "openai"
 
-# [llm] #AZURE OPENAI:
-# api_type= 'azure'
-# model = "YOUR_MODEL_NAME" #"gpt-4o-mini"
-# base_url = "{YOUR_AZURE_ENDPOINT.rstrip('/')}/openai/deployments/{AZURE_DEPOLYMENT_ID}"
-# api_key = "AZURE API KEY"
-# max_tokens = 8096
-# temperature = 0.0
-# api_version="AZURE API VERSION" #"2024-08-01-preview"
+# Azure OpenAI configuration example
+[llm.azure]
+api_type = "azure"
+model = "YOUR_MODEL_NAME" #"gpt-4o-mini"
+base_url = "{YOUR_AZURE_ENDPOINT.rstrip('/')}/openai/deployments/{AZURE_DEPOLYMENT_ID}"
+api_key = "AZURE API KEY"
+max_tokens = 8096
+temperature = 0.0
+api_version = "2024-08-01-preview"
 
-# Optional configuration for specific LLM models
+# Ollama configuration example
+[llm.ollama]
+api_type = "ollama"
+model = "llama3.2" # or any model you have pulled to your Ollama instance
+host = "http://localhost:11434" # default Ollama server address
+max_tokens = 4096
+temperature = 0.5
+
+# OpenRouter configuration example
+[llm.openrouter]
+api_type = "openrouter"
+model = "meta-llama/llama-3.1-8b-instruct" # or any other OpenRouter model
+base_url = "https://openrouter.ai/api/v1"
+api_key = "sk-or-..." # Your OpenRouter API key
+# Optional OpenRouter-specific settings
+http_referer = "https://yourdomain.com" # Optional, for rankings
+x_title = "Your App Name" # Optional, for rankings
+max_tokens = 4096
+temperature = 0.7
+
+# Optional configuration for vision models
 [llm.vision]
 model = "claude-3-5-sonnet"
 base_url = "https://api.openai.com/v1"
 api_key = "sk-..."
+api_type = "openai"

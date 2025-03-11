@@ -3,33 +3,177 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenManus Local Version</title>
+    <title>OpenManus - Open Source AI Agent</title>
     <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <div class="history-panel">
-            <h2>History Tasks</h2>
-            <div id="task-list" class="task-list"></div>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-robot"></i>
+                    <h1>OpenManus</h1>
+                </div>
+                <button id="mobile-toggle" class="mobile-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            
+            <div class="sidebar-content">
+                <div class="sidebar-section">
+                    <h3>History</h3>
+                    <div id="task-list" class="task-list"></div>
+                </div>
+                
+                <div class="sidebar-section">
+                    <h3>Settings</h3>
+                    <div class="settings-item">
+                        <label for="theme-toggle">Dark Mode</label>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="theme-toggle">
+                            <span class="toggle-slider"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <a href="https://github.com/mannaandpoem/OpenManus" target="_blank" class="github-link">
+                    <i class="fab fa-github"></i> GitHub
+                </a>
+                <span class="version">v1.0.0</span>
+            </div>
         </div>
-
-        <div class="main-panel">
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="main-header">
+                <div class="breadcrumb">
+                    <span>Home</span>
+                    <span id="current-task-breadcrumb"></span>
+                </div>
+                <div class="user-actions">
+                    <button id="clear-history" class="icon-button" title="Clear History">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button id="help-button" class="icon-button" title="Help">
+                        <i class="fas fa-question-circle"></i>
+                    </button>
+                </div>
+            </div>
+            
             <div id="task-container" class="task-container">
                 <div class="welcome-message">
-                    <h1>Welcome to OpenManus Local Version</h1>
-                    <p>Please enter a task prompt to start a new task</p>
+                    <h1>Welcome to OpenManus</h1>
+                    <p>Your open-source AI agent that can help with various tasks</p>
+                    
+                    <div class="feature-cards">
+                        <div class="feature-card">
+                            <i class="fas fa-code"></i>
+                            <h3>Code Execution</h3>
+                            <p>Run Python code to analyze data or automate tasks</p>
+                        </div>
+                        <div class="feature-card">
+                            <i class="fas fa-globe"></i>
+                            <h3>Web Browsing</h3>
+                            <p>Search the web and extract information from websites</p>
+                        </div>
+                        <div class="feature-card">
+                            <i class="fas fa-file-alt"></i>
+                            <h3>File Operations</h3>
+                            <p>Create, read, and save files with your data</p>
+                        </div>
+                    </div>
+                    
+                    <div class="example-prompts">
+                        <h3>Try these examples:</h3>
+                        <div class="example-buttons">
+                            <button class="example-button" data-prompt="Create a 7-day Japan travel itinerary for April with a $3000 budget. Include attractions, accommodations, and travel tips.">
+                                Travel Planner
+                            </button>
+                            <button class="example-button" data-prompt="Analyze the S&P 500 performance over the last month and create a visualization.">
+                                Data Analysis
+                            </button>
+                            <button class="example-button" data-prompt="Create a simple web app that displays current weather for a given city.">
+                                Web Development
+                            </button>
+                        </div>
+                    </div>
                 </div>
+                
                 <div id="log-container" class="step-container"></div>
             </div>
-
+            
             <div id="input-container" class="input-container">
-                <input
-                    type="text"
-                    id="prompt-input"
-                    placeholder="Enter task prompt..."
-                    onkeypress="if(event.keyCode === 13) createTask()"
-                >
-                <button onclick="createTask()">Create Task</button>
+                <div class="input-wrapper">
+                    <textarea
+                        id="prompt-input"
+                        placeholder="Describe your task in detail..."
+                        rows="1"
+                        onkeydown="if(event.keyCode === 13 && !event.shiftKey) { event.preventDefault(); createTask(); }"
+                    ></textarea>
+                    <button id="submit-button" onclick="createTask()">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="input-help">
+                    Press Enter to submit, Shift+Enter for new line
+                </div>
+            </div>
+            
+            <!-- File Upload Modal -->
+            <div id="file-upload-modal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Upload Files</h2>
+                        <button class="close-modal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="file-drop-area">
+                            <span class="file-message">Drag & drop files here or click to browse</span>
+                            <input type="file" id="file-input" multiple>
+                        </div>
+                        <div id="file-list" class="file-list"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="cancel-upload" class="button secondary">Cancel</button>
+                        <button id="confirm-upload" class="button primary">Upload</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Help Modal -->
+            <div id="help-modal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>OpenManus Help</h2>
+                        <button class="close-modal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <h3>Getting Started</h3>
+                        <p>OpenManus is an AI agent that can help you with various tasks. Simply describe what you need in the input box and press Enter.</p>
+                        
+                        <h3>Capabilities</h3>
+                        <ul>
+                            <li><strong>Web Browsing:</strong> Search the web and extract information from websites</li>
+                            <li><strong>Code Execution:</strong> Run Python code to analyze data or create applications</li>
+                            <li><strong>File Operations:</strong> Create and save files with your data</li>
+                            <li><strong>Planning:</strong> Break down complex tasks into manageable steps</li>
+                        </ul>
+                        
+                        <h3>Tips</h3>
+                        <ul>
+                            <li>Be specific in your requests for better results</li>
+                            <li>For complex tasks, provide clear requirements and constraints</li>
+                            <li>You can upload files to provide additional context</li>
+                        </ul>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

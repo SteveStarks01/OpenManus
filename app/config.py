@@ -1,7 +1,7 @@
 import threading
 import tomllib
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -21,8 +21,11 @@ class LLMSettings(BaseModel):
     api_key: str = Field(..., description="API key")
     max_tokens: int = Field(4096, description="Maximum number of tokens per request")
     temperature: float = Field(1.0, description="Sampling temperature")
-    api_type: str = Field(..., description="AzureOpenai or Openai")
-    api_version: str = Field(..., description="Azure Openai version if AzureOpenai")
+    api_type: str = Field("openai", description="API type (openai, azure, ollama, openrouter)")
+    api_version: Optional[str] = Field(None, description="API version for Azure OpenAI")
+    http_referer: Optional[str] = Field(None, description="HTTP Referer for OpenRouter API")
+    x_title: Optional[str] = Field(None, description="X-Title for OpenRouter API")
+    host: Optional[str] = Field("http://localhost:11434", description="Host for Ollama API")
 
 
 class AppConfig(BaseModel):
@@ -78,8 +81,11 @@ class Config:
             "api_key": base_llm.get("api_key"),
             "max_tokens": base_llm.get("max_tokens", 4096),
             "temperature": base_llm.get("temperature", 1.0),
-            "api_type": base_llm.get("api_type", ""),
-            "api_version": base_llm.get("api_version", ""),
+            "api_type": base_llm.get("api_type", "openai"),
+            "api_version": base_llm.get("api_version"),
+            "http_referer": base_llm.get("http_referer"),
+            "x_title": base_llm.get("x_title"),
+            "host": base_llm.get("host", "http://localhost:11434"),
         }
 
         config_dict = {

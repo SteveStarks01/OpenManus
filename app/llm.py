@@ -1,4 +1,7 @@
 from typing import Dict, List, Literal, Optional, Union
+import httpx
+import json
+import asyncio
 
 from openai import (
     APIError,
@@ -40,13 +43,35 @@ class LLM:
             self.api_key = llm_config.api_key
             self.api_version = llm_config.api_version
             self.base_url = llm_config.base_url
+            self.http_referer = llm_config.http_referer
+            self.x_title = llm_config.x_title
+            self.host = llm_config.host
+            
+            # Initialize client based on API type
             if self.api_type == "azure":
                 self.client = AsyncAzureOpenAI(
                     base_url=self.base_url,
                     api_key=self.api_key,
                     api_version=self.api_version,
                 )
+            elif self.api_type == "ollama":
+                # For Ollama, we'll handle API calls directly with httpx
+                self.client = None
+            elif self.api_type == "openrouter":
+                # For OpenRouter, we use OpenAI client with custom headers
+                headers = {}
+                if self.http_referer:
+                    headers["HTTP-Referer"] = self.http_referer
+                if self.x_title:
+                    headers["X-Title"] = self.x_title
+                
+                self.client = AsyncOpenAI(
+                    api_key=self.api_key,
+                    base_url=self.base_url,
+                    default_headers=headers
+                )
             else:
+                # Default to standard OpenAI client
                 self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
 
     @staticmethod
@@ -133,6 +158,11 @@ class LLM:
             else:
                 messages = self.format_messages(messages)
 
+            # Handle Ollama API
+            if self.api_type == "ollama":
+                return await self._ask_ollama(messages, stream, temperature)
+
+            # For OpenAI and OpenRouter (OpenAI compatible)
             if not stream:
                 # Non-streaming request
                 response = await self.client.chat.completions.create(
@@ -175,6 +205,66 @@ class LLM:
             raise
         except Exception as e:
             logger.error(f"Unexpected error in ask: {e}")
+            raise
+            
+    async def _ask_ollama(
+        self, 
+        messages: List[dict],
+        stream: bool = True,
+        temperature: Optional[float] = None,
+    ) -> str:
+        """Handle Ollama API requests"""
+        try:
+            async with httpx.AsyncClient() as client:
+                # Prepare the request payload
+                payload = {
+                    "model": self.model,
+                    "messages": messages,
+                    "stream": stream,
+                    "options": {
+                        "temperature": temperature or self.temperature,
+                        "num_predict": self.max_tokens,
+                    }
+                }
+                
+                endpoint = f"{self.host}/api/chat"
+                
+                if not stream:
+                    # Non-streaming request
+                    response = await client.post(endpoint, json=payload)
+                    response.raise_for_status()
+                    data = response.json()
+                    return data.get("message", {}).get("content", "")
+                
+                # Streaming request
+                payload["stream"] = True
+                collected_messages = []
+                
+                async with client.stream("POST", endpoint, json=payload) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if not line.strip():
+                            continue
+                        try:
+                            chunk = json.loads(line)
+                            content = chunk.get("message", {}).get("content", "")
+                            if content:
+                                collected_messages.append(content)
+                                print(content, end="", flush=True)
+                        except json.JSONDecodeError:
+                            pass
+                
+                print()  # Newline after streaming
+                full_response = "".join(collected_messages).strip()
+                if not full_response:
+                    raise ValueError("Empty response from Ollama")
+                return full_response
+                
+        except httpx.HTTPError as e:
+            logger.error(f"Ollama API error: {e}")
+            raise ValueError(f"Error communicating with Ollama: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error in Ollama request: {e}")
             raise
 
     @retry(
@@ -228,8 +318,42 @@ class LLM:
                 for tool in tools:
                     if not isinstance(tool, dict) or "type" not in tool:
                         raise ValueError("Each tool must be a dict with 'type' field")
+            
+            # Handle Ollama (note: Ollama has limited native tool support)
+            if self.api_type == "ollama":
+                if tools:
+                    logger.warning("Ollama has limited tool support; appending to system message")
+                    # For Ollama, we'll add tools description to the system message
+                    tools_desc = json.dumps(tools, indent=2)
+                    tool_instructions = f"You have access to the following tools: {tools_desc}. " \
+                                        f"When appropriate, use these tools by responding in the format " \
+                                        f"'TOOL_CALL: {{\"name\": \"tool_name\", \"arguments\": {{\"arg1\": \"value\"}}}}'"
+                    
+                    # Find or create system message
+                    found_system = False
+                    for msg in messages:
+                        if msg["role"] == "system":
+                            msg["content"] = msg["content"] + "\n\n" + tool_instructions
+                            found_system = True
+                            break
+                    
+                    if not found_system:
+                        messages.insert(0, {"role": "system", "content": tool_instructions})
+                
+                # Process with regular Ollama chat
+                response_content = await self._ask_ollama(
+                    messages=messages,
+                    stream=False,
+                    temperature=temperature,
+                )
+                
+                # Create an OpenAI-like response object
+                return {
+                    "content": response_content,
+                    "role": "assistant"
+                }
 
-            # Set up the completion request
+            # Set up the completion request (for OpenAI and OpenRouter)
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
